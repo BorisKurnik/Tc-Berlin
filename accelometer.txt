@@ -1,0 +1,289 @@
+﻿Version=3
+IconFile=
+NumberOfModules=0
+Package=b4a.example
+DoNotOverwriteManifest=False
+ManifestCode='This code will be applied to the manifest file during compilation.~\n~'You do not need to modify it in most cases.~\n~'See this link for for more information: http://www.basic4ppc.com/forum/showthread.php?p=78136~\n~AddManifestText(~\n~<uses-sdk android:minSdkVersion="4" android:targetSdkVersion="14"/>~\n~<supports-screens android:largeScreens="true" ~\n~    android:normalScreens="true" ~\n~    android:smallScreens="true" ~\n~    android:anyDensity="true"/>)~\n~SetApplicationAttribute(android:icon, "@drawable/icon")~\n~SetApplicationAttribute(android:label, "$LABEL$")~\n~'End of default text.~\n~
+UserTypesHint=SensorData
+NumberOfFiles=7
+File1=accelometer.bal
+File2=advanced.bal
+File3=controls.bal
+File4=ignition.wav
+File5=speed1.wav
+File6=speed2.wav
+File7=tabhost.bal
+NumberOfLibraries=5
+Library1=core
+Library2=phone
+Library3=randomaccessfile
+Library4=serial
+Library5=tabhostextras
+@EndOfDesignText@
+#Region  Project Attributes 
+	#ApplicationLabel: Accelometer
+	#VersionCode: 1
+	#VersionName: 
+	'SupportedOrientations possible values: unspecified, landscape or portrait.
+	#SupportedOrientations: landscape
+	#CanInstallToExternalStorage: False
+#End Region
+
+#Region  Activity Attributes 
+	#FullScreen: False
+	#IncludeTitle: True
+#End Region
+
+Sub Process_Globals
+	'These global variables will be declared once when the application starts.
+	'These variables can be accessed from all modules.
+	Dim SensorsMap As Map
+	Type SensorData (Name As String, ThreeValues As Boolean)
+	
+	Dim Serial1 As Serial
+	Dim voltage As Double 
+	Dim s As String 
+	Dim test As String 
+	Dim Timer1 As Timer
+	Dim connected As Boolean
+	Dim AStream As AsyncStreams
+	Dim Vibrate As PhoneVibrate ' For phone vibration
+	Dim MediaPlayer1 As MediaPlayer
+	Dim MediaPlayer2 As MediaPlayer
+	
+End Sub
+
+Sub Globals
+	'These global variables will be redeclared each time the activity is created.
+	'These variables can only be accessed from this module.
+	Dim SensorsLabels As Map
+	Dim Xvalue As Float 
+	Dim YValue As Float 
+	Dim XInt As Int 
+	Dim YInt As Int 
+	Dim XIntOld As Int 
+	Dim YIntOld As Int 
+	Dim lbl1 As Label 
+	Dim lbl2 As Label 
+	Dim label1 As Label 
+	Dim label2 As Label 
+	Dim cvsActivity As Canvas 
+	
+	Dim AutoX As Float 
+	Dim AutoY As Float 
+	
+	Dim XCompensationAdvanced As Float 
+	Dim YCompensationAdvanced As Float 
+	Dim PressedDetectorLeft As Boolean 
+	Dim PressedDetectorRight As Boolean 
+	
+	
+
+	Dim Button1 As Button
+	Dim chkTest As CheckBox
+	Dim lblTestR As Label
+	Dim lblTestL As Label
+	Dim btnActivateLeft As Button
+	Dim btnActivateRight As Button
+	Dim btnAutomatic As Button 
+End Sub
+
+Sub Activity_Create(FirstTime As Boolean)
+	'Do not forget to load the layout file created with the visual designer. For example:
+	Activity.LoadLayout("tabhost")   '("accelometer")
+	
+
+	TabManager.setTabHeight(Tabhost1, 60)
+	
+	If FirstTime Then
+	     Serial1.Initialize("Serial1")		
+    	
+		MediaPlayer1.Initialize( )
+        MediaPlayer1.Load(File.DirAssets, "ignition.wav")
+
+		MediaPlayer2.Initialize( )
+        MediaPlayer2.Load(File.DirAssets, "test.wav")
+		
+		
+		
+		IsOperating = False
+		IsSlow = False
+		AutoX = 0
+		AutoY = 0
+		
+		
+	
+	
+	cvsActivity.Initialize(Activity)
+			
+    
+    Activity.AddMenuItem("Connect", "mnuConnect")
+    Activity.AddMenuItem("Disconnect", "mnuDisconnect")
+
+
+End Sub
+
+
+Sub AddSensor(SensorType As Int, Name As String, ThreeValues As Boolean) As SensorData
+	Dim sd As SensorData
+	sd.Initialize
+	sd.Name = Name
+	sd.ThreeValues = ThreeValues
+	Dim ps As PhoneSensors
+	ps.Initialize(SensorType)
+	SensorsMap.Put(ps, sd)
+	Log(Name & " MaxValue = " & ps.MaxValue)
+End Sub
+
+
+Sub Sensor_SensorChanged (Values() As Float)
+	Dim ps As PhoneSensors
+	Dim sd As SensorData
+	Dim lbl As Label
+	Dim YSendValue As Int 
+	Dim XSendValue As Int 
+	
+	'Get the PhoneSensors object that raised this event.
+	ps = Sender
+	sd = SensorsMap.Get(ps) 'Get the associated SensorData obejct
+	lbl = SensorsLabels.Get(ps) 'Get the associated Label.
+	If sd.ThreeValues Then
+		'lbl.Text = sd.Name & " X=" & NumberFormat(Values(0), 0, 3) & ", Y=" & NumberFormat(Values(1), 0, 3) _ 
+		'	& ", Z=" & NumberFormat(Values(2), 0, 3)			
+			
+			
+	If chkTest.Checked = True Then
+		XSendValue = XInt			
+	Else
+		XSendValue= - XInt + Floor(YInt/2)
+		YSendValue= -XInt - Floor(YInt/2)
+	End If
+	
+	
+	If XSendValue > 10 Then XSendValue = 10
+	If XSendValue < -10 Then XSendValue = -10
+	
+	lblTestL.Text = XSendValue
+	lblTestR.Text = YSendValue
+
+												
+												
+'			X > 0   -> GIBANJE NAPREJ     
+'			X < 0   -> GIBANJE NAZAJ
+'			Y > 0   -> LEVO
+'			Y < 0   -> DESNO
+							
+	RightWheelSend(XSendValue)		'RIGHT WHEEL
+	If chkTest.Checked = False Then
+		LeftWheelSend(YSendValue)
+	End If		
+	
+	End If
+	
+	
+	
+	
+	
+	
+	
+	
+	If YIntOld <> YInt AND IsOperating = True Then						'y + levo       y - desno
+	YIntOld = YInt
+	If Abs(YInt) >= 9  Then Vibrate.Vibrate (300) ' Vibrate phone for 300 ms
+							'poslji novo pozicijo	
+							
+	If chkTest.Checked = True Then
+	YSendValue= YInt
+	Else
+	YSendValue= -XInt - Floor(YInt/2)
+	XSendValue= - XInt + Floor(YInt/2)							
+	End If
+	
+	If YSendValue > 10 Then YSendValue = 10
+	If YSendValue < -10 Then YSendValue = -10
+	
+	lblTestR.Text = YSendValue
+	lblTestL.Text = XSendValue
+	
+								
+	LeftWheelSend(YSendValue)		'LEFT WHEEL		
+	If chkTest.Checked = False Then
+		RightWheelSend(XSendValue)
+	End If		
+	
+	End If
+	
+	Else
+		lbl.Text = sd.Name & " = " & NumberFormat(Values(0), 0, 3)
+	End If
+End Sub
+
+
+
+Sub Serial1_Connected (Success As Boolean)
+    If Success Then
+        ToastMessageShow("Connected successfully", False)
+        connected = True
+		If AStream.IsInitialized = False Then
+		AStream.Initialize(Serial1.InputStream, Serial1.OutputStream, "AStreams")
+		End If
+    Else
+        connected = False
+        Msgbox(LastException.Message, "Error connecting.")
+    End If
+End Sub
+
+
+
+
+Sub Activity_KeyPress (KeyCode As Int) As Boolean 'Return True to consume the event
+Dim Answ As Int
+If KeyCode = KeyCodes.KEYCODE_BACK Then
+Answ = Msgbox2("Do you want to quit the program ?", _
+"A T T E N T I O N", "Yes", "", "No", Null)
+If Answ = DialogResponse.NEGATIVE Then
+Return True
+End If
+End If
+Return False
+End Sub
+
+
+Sub mnuDisconnect_Click
+	Serial1.Disconnect
+	connected = False
+End Sub
+
+Sub Button1_Click				'start
+	StartEngine
+End Sub
+
+Sub StartEngine
+	Aux1On
+	If IsOperating = False Then
+		MediaPlayer1.Play
+		IsOperating = True
+	End If
+	
+End Sub
+
+Sub StopEngine
+
+	
+	IsOperating = False
+	LeftWheelSend(0)
+	RightWheelSend(0)
+	XInt=0
+	XIntOld=0
+	YInt=0
+	YIntOld=0
+	Aux1Off
+
+End Sub
+
+
+Sub Button2_Click				'stop
+		
+	StopEngine
+	
+End Sub
