@@ -50,6 +50,16 @@ Sub Process_Globals
 	Dim Vibrate As PhoneVibrate ' For phone vibration
 	Dim MediaPlayer1 As MediaPlayer
 	Dim MediaPlayer2 As MediaPlayer
+	Dim Speed1 As MediaPlayer
+	Dim Speed2 As MediaPlayer 
+	Dim Speed3 As MediaPlayer
+	Dim Speed4 As MediaPlayer
+	Dim Speed5 As MediaPlayer
+	Dim Speed6 As MediaPlayer
+	Dim Speed7 As MediaPlayer
+	Dim Speed8 As MediaPlayer
+	Dim Speed9 As MediaPlayer
+	Dim Speed10 As MediaPlayer
 	
 End Sub
 
@@ -68,6 +78,16 @@ Sub Globals
 	Dim label1 As Label 
 	Dim label2 As Label 
 	Dim cvsActivity As Canvas 
+	Dim bmpRemote As Bitmap
+	Dim imvRemote As ImageView 
+	Dim SeekBar1 As SeekBar 
+	Dim SeekBar2 As SeekBar 
+	Dim Tabhost1 As TabHost
+	Dim TabManager As TabHostExtras
+	Dim IsOperating As Boolean 
+	Dim IsSlow As Boolean 
+	Dim DetectorLeft As Boolean 
+	Dim DetectorRight As Boolean 
 	
 	Dim AutoX As Float 
 	Dim AutoY As Float 
@@ -92,6 +112,9 @@ Sub Activity_Create(FirstTime As Boolean)
 	'Do not forget to load the layout file created with the visual designer. For example:
 	Activity.LoadLayout("tabhost")   '("accelometer")
 	
+	Tabhost1.AddTab("BASIC DRIVE","controls") ' Adds Page1 on the first Tab
+	Tabhost1.AddTab("SETTINGS","accelometer") ' Adds Page2 on the second Tab
+	Tabhost1.AddTab("ADVANCED DRIVE","advanced") ' Adds Page3 on the second Tab
 
 	TabManager.setTabHeight(Tabhost1, 60)
 	
@@ -112,6 +135,20 @@ Sub Activity_Create(FirstTime As Boolean)
 		AutoY = 0
 		
 		
+		SensorsMap.Initialize
+		Dim ps As PhoneSensors 'This object is only used to access the type constants.
+		AddSensor(ps.TYPE_ACCELEROMETER, "ACCELEROMETER", True)
+	End If
+	SensorsLabels.Initialize 'SensorsLabels is not a Process_Globals object so we need to create it each time
+	For i = 0 To SensorsMap.Size - 1
+		Dim ps As PhoneSensors
+		ps = SensorsMap.GetKeyAt(i)
+		Dim lbl As Label
+		lbl.Initialize("")
+		lbl.TextColor = Colors.White 
+		Activity.AddView(lbl, 10dip, 10dip + 50dip * i, 100%x - 10dip, 45dip)
+		SensorsLabels.Put(ps, lbl)
+	Next
 	
 	
 	cvsActivity.Initialize(Activity)
@@ -123,6 +160,46 @@ Sub Activity_Create(FirstTime As Boolean)
 
 End Sub
 
+Sub Activity_Resume
+	'Here we start listening for SensorChanged events.
+	'By checking the return value we knoe if the sensor is supported.
+	
+	Dim sd As SensorData 
+	
+	sd = SensorsMap.GetValueAt(0)
+	
+	
+	For i = 0 To SensorsMap.Size - 1			'izpis label
+		Dim ps As PhoneSensors
+		Dim sd As SensorData
+		Dim lbl As Label
+		ps = SensorsMap.GetKeyAt(i)
+		sd = SensorsMap.GetValueAt(i)
+		lbl = SensorsLabels.Get(ps)
+		If ps.StartListening("Sensor") = False Then
+			lbl.Text = sd.Name & " is not supported."
+			Log(sd.Name & " is not supported.")
+		End If
+	Next
+	
+	
+	
+	If Serial1.IsEnabled = False Then
+        Msgbox("Please enable Bluetooth.", "")
+	Else
+        Serial1.Listen 'listen for incoming connections
+	End If
+End Sub
+
+Sub Activity_Pause (UserClosed As Boolean)
+	'Stop listening for events.
+	For i = 0 To SensorsMap.Size - 1
+		Dim ps As PhoneSensors
+		ps = SensorsMap.GetKeyAt(i)
+		ps.StopListening
+	Next
+
+End Sub
 
 Sub AddSensor(SensorType As Int, Name As String, ThreeValues As Boolean) As SensorData
 	Dim sd As SensorData
@@ -152,6 +229,34 @@ Sub Sensor_SensorChanged (Values() As Float)
 		'	& ", Z=" & NumberFormat(Values(2), 0, 3)			
 			
 			
+	If AutoX=0 AND AutoY=0 Then			
+		Xvalue = Values(0)+(SeekBar1.Value -20)* 0.1				'kompenzacija
+		YValue = Values(1)+(SeekBar2.Value -20)* 0.1
+	Else
+		Xvalue = Values(0)+AutoX
+		YValue = Values(1)+AutoY
+	End If		
+	
+	
+	If IsSlow = True Then
+	Xvalue = Xvalue/2
+	YValue = YValue/2
+	End If
+	
+	lbl1.Text = NumberFormat (Xvalue,1,1)
+	lbl2.Text = NumberFormat (YValue,1,1)
+	XInt = Floor (Xvalue+0.5)
+	YInt = Floor (YValue+0.5)
+	label1.Text = XInt
+	label2.Text = YInt
+	
+		
+	If XIntOld <> XInt AND IsOperating = True Then
+		XIntOld = XInt						'x + naprej               x - nazaj
+		If Abs(XInt) >= 9 Then Vibrate.Vibrate (300) ' Vibrate phone for 300 ms
+							'poslji novo pozicijo	
+	
+
 	If chkTest.Checked = True Then
 		XSendValue = XInt			
 	Else
@@ -219,6 +324,74 @@ Sub Sensor_SensorChanged (Values() As Float)
 End Sub
 
 
+Sub RightWheelSend(XIntSub As Int )				'X -> RIGHT WHEEL
+'X positive -> Rn
+'X negative -> Ln
+
+Dim XString As String 
+Dim Temp As Float 
+
+If XIntSub=-10 Then XString="L:"		' 0,1,2,3,4,5,6,7,8,9,:    ascii
+If XIntSub=-9 Then XString="L9"
+If XIntSub=-8 Then XString="L8"
+If XIntSub=-7 Then XString="L7"
+If XIntSub=-6 Then XString="L6"
+If XIntSub=-5 Then XString="L5"
+If XIntSub=-4 Then XString="L4"
+If XIntSub=-3 Then XString="L3"
+If XIntSub=-2 Then XString="L2"
+If XIntSub=-1 Then XString="L1"
+If XIntSub=0 Then XString="R0"
+If XIntSub=1 Then XString="R1"
+If XIntSub=2 Then XString="R2"
+If XIntSub=3 Then XString="R3"
+If XIntSub=4 Then XString="R4"
+If XIntSub=5 Then XString="R5"
+If XIntSub=6 Then XString="R6"
+If XIntSub=7 Then XString="R7"
+If XIntSub=8 Then XString="R8"
+If XIntSub=9 Then XString="R9"
+If XIntSub=10 Then XString="R:"
+
+
+AStream.Write(XString.GetBytes("UTF8"))
+End Sub
+
+
+Sub LeftWheelSend(YIntSub As Int )					' Y -> LEFT WHEEL
+'Y positive -> Un
+'Y negative -> Dn
+
+Dim YString As String 
+Dim Temp As Float 
+
+If YIntSub=-10 Then YString="D:"
+If YIntSub=-9 Then YString="D9"
+If YIntSub=-8 Then YString="D8"
+If YIntSub=-7 Then YString="D7"
+If YIntSub=-6 Then YString="D6"
+If YIntSub=-5 Then YString="D5"
+If YIntSub=-4 Then YString="D4"
+If YIntSub=-3 Then YString="D3"
+If YIntSub=-2 Then YString="D2"
+If YIntSub=-1 Then YString="D1"
+If YIntSub=0 Then YString="U0"
+If YIntSub=1 Then YString="U1"
+If YIntSub=2 Then YString="U2"
+If YIntSub=3 Then YString="U3"
+If YIntSub=4 Then YString="U4"
+If YIntSub=5 Then YString="U5"
+If YIntSub=6 Then YString="U6"
+If YIntSub=7 Then YString="U7"
+If YIntSub=8 Then YString="U8"
+If YIntSub=9 Then YString="U9"
+If YIntSub=10 Then YString="U:"
+
+
+AStream.Write(YString.GetBytes("UTF8"))
+End Sub
+
+
 
 Sub Serial1_Connected (Success As Boolean)
     If Success Then
@@ -234,6 +407,44 @@ Sub Serial1_Connected (Success As Boolean)
 End Sub
 
 
+Sub mnuConnect_Click
+    Dim PairedDevices As Map
+    PairedDevices = Serial1.GetPairedDevices
+    Dim l As List
+    l.Initialize
+    For i = 0 To PairedDevices.Size - 1
+        l.Add(PairedDevices.GetKeyAt(i)) 'add the friendly name to the list
+    Next
+    Dim res As Int
+    res = InputList(l, "Choose device", -1) 'show list with paired devices
+    If res <> DialogResponse.CANCEL Then
+        Serial1.Connect(PairedDevices.Get(l.Get(res))) 'convert the name to mac address
+    End If
+End Sub
+
+
+Sub AStreams_NewData (Buffer() As Byte)
+Dim Response As String 
+Dim msg As String
+msg = BytesToString(Buffer, 0, Buffer.Length, "UTF8")
+
+Select Case msg
+Case "k"
+Response = "K"
+AStream.Write(Response.GetBytes("UTF8"))
+Case "OK"
+Vibrate.Vibrate (300) ' Vibrate phone for 300 ms
+End Select
+
+End Sub
+
+Sub AStream_Error
+	ToastMessageShow("Connection is broken.", True)
+End Sub
+
+Sub AStream_Terminated
+	AStream_Error
+End Sub
 
 
 Sub Activity_KeyPress (KeyCode As Int) As Boolean 'Return True to consume the event
@@ -286,4 +497,55 @@ Sub Button2_Click				'stop
 		
 	StopEngine
 	
+End Sub
+Sub toggleSlow_CheckedChange(Checked As Boolean)
+	If IsSlow = True Then
+		IsSlow = False
+	Else
+		IsSlow = True
+	End If		
+End Sub
+
+Sub Aux1On()			
+Dim XString As String
+
+XString = "Y"
+AStream.Write(XString.GetBytes("UTF8"))
+End Sub
+
+
+Sub Aux1Off()			
+Dim XString As String
+
+XString = "X"
+AStream.Write(XString.GetBytes("UTF8"))
+End Sub
+
+
+Sub Aux2On()			
+Dim XString As String
+
+XString = "C"
+AStream.Write(XString.GetBytes("UTF8"))
+End Sub
+
+
+Sub Aux2Off()			
+Dim XString As String
+
+XString = "V"
+AStream.Write(XString.GetBytes("UTF8"))
+End Sub
+
+Sub btnAutomatic_Up
+	btnAutomatic.Text = "PRESS AND HOLD TO START ENGINE"
+	StopEngine	
+	AutoX = 0
+	AutoY = 0
+End Sub
+Sub btnAutomatic_Down
+	btnAutomatic.Text = "RELEASE TO STOP ENGINE"
+	StartEngine
+	AutoX = -Xvalue
+	AutoY = -YValue
 End Sub
